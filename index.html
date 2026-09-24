@@ -4,7 +4,13 @@
 <section class="card wide"><span class="pill">DEMO HỌC TẬP</span><h2 style="margin-top:12px">Kết nối Blockchain</h2><p class="muted">Kết nối ví để ghi dữ liệu. Chế độ demo offline vẫn cho phép xem sản phẩm mẫu và tạo QR thật.</p><button id="connect">Kết nối MetaMask</button> <button class="secondary" id="demo">Nạp dữ liệu cà phê mẫu</button><div id="account" class="muted" style="margin-top:10px"></div></section>
 <section class="card"><h2>① Tạo lô cà phê</h2><label>Mã lô</label><input id="pid" value="VN-CF-2026-001"><label>Sản phẩm</label><input id="pname" value="Cà phê Arabica Cầu Đất"><label>Xuất xứ</label><input id="origin" value="Cầu Đất, Đà Lạt, Lâm Đồng"><label>Nhà sản xuất</label><input id="manufacturer" value="HTX Cà phê Cao nguyên Demo"><button id="create">Ghi lên Blockchain</button></section>
 <section class="card"><h2>② Thêm hành trình</h2><label>Mã lô</label><input id="tid" value="VN-CF-2026-001"><label>Trạng thái</label><input id="status" value="Đã rang và đóng gói"><label>Địa điểm</label><input id="location" value="Đà Lạt, Lâm Đồng"><label>Ghi chú</label><input id="note" value="Rang vừa, đóng gói 500g"><button id="trace">Ghi sự kiện</button></section>
-<section class="card wide"><h2>③ Tra cứu & QR</h2><div class="row"><div><label>Mã sản phẩm</label><input id="qid" value="VN-CF-2026-001"></div><div style="flex:0 0 auto"><button id="search">Tra cứu</button></div></div><div id="result" style="margin-top:18px"><p class="muted">Nhấn “Nạp dữ liệu cà phê mẫu” để xem ngay, hoặc kết nối contract đã deploy.</p></div></section>
+<section class="card wide"><h2>③ Tra cứu & QR</h2><div class="row"><div><label>Mã sản phẩm</label><input id="qid" value="VN-CF-2026-001"></div><div style="flex:0 0 auto"><button id="search">Tra cứu</button></div></div><div id="result" style="margin-top:18px"><p class="muted">Nhấn “Nạp dữ liệu cà phê mẫu” để xem ngay, hoặc kết nối contract đã deploy.</p></div><div class="qrbox" style="margin-top:24px;text-align:center">
+  <h3>QR truy xuất</h3>
+  <div id="qr" style="display:flex;justify-content:center;margin:16px 0"></div>
+  <p class="muted">Quét QR bằng điện thoại để mở đúng mã lô này.</p>
+  <button type="button" onclick="downloadQR()">Lưu QR PNG</button>
+</div>
+</section>
 <section class="card wide"><h2>Sơ đồ kiến trúc</h2><div class="arch"><div>Nhà sản xuất<br>MetaMask</div><div class="arrow">→</div><div>Web App<br>ethers.js</div><div class="arrow">→</div><div>Smart Contract<br>Solidity</div><div class="arrow">→</div><div>Ethereum<br>Sepolia</div><div class="arrow">→</div><div>QR / Người mua<br>Tra cứu</div></div></section>
 </div></main>
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script><script src="app.js"></script></body></html>

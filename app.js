@@ -1,15 +1,405 @@
-const CONTRACT_ADDRESS="PASTE_CONTRACT_ADDRESS_HERE";
-const ABI=["function createProduct(string id,string name,string origin,string manufacturer)","function addTrace(string id,string status,string location,string note)","function getProduct(string id) view returns (tuple(string id,string name,string origin,string manufacturer,uint256 createdAt,bool exists))","function getHistory(string id) view returns (tuple(string status,string location,string note,uint256 timestamp,address actor)[])"];
-let provider,signer,contract; const $=id=>document.getElementById(id);
-const demoProduct={id:"VN-CF-2026-001",name:"Cà phê Arabica Cầu Đất",origin:"Cầu Đất, Đà Lạt, Lâm Đồng",manufacturer:"HTX Cà phê Cao nguyên Demo",createdAt:"18/09/2026 07:30",history:[{status:"Thu hoạch",location:"Cầu Đất, Đà Lạt",note:"Thu hoạch quả chín chọn lọc",time:"18/09/2026 07:30",actor:"0xFARM...2026"},{status:"Sơ chế",location:"Cầu Đất, Đà Lạt",note:"Sơ chế ướt, phơi kiểm soát",time:"19/09/2026 14:10",actor:"0xPROC...2026"},{status:"Kiểm định chất lượng",location:"Đà Lạt, Lâm Đồng",note:"Mẫu đạt tiêu chuẩn nội bộ của lô demo",time:"21/09/2026 09:20",actor:"0xQC...2026"},{status:"Rang & đóng gói",location:"Đà Lạt, Lâm Đồng",note:"Rang vừa, đóng gói 500g",time:"22/09/2026 16:00",actor:"0xPACK...2026"},{status:"Sẵn sàng phân phối",location:"Hà Nội",note:"Lô demo phục vụ tiểu luận",time:"24/09/2026 08:30",actor:"0xDIST...2026"}]};
-function err(e){alert(e.shortMessage||e.reason||e.message||e)}
-function need(){if(!contract)throw Error("Hãy kết nối MetaMask trước.");if(CONTRACT_ADDRESS.includes("PASTE_"))throw Error("Hãy dán contract address đã deploy vào app.js.")}
-async function qrData(id){const u=new URL(location.href);u.searchParams.set("id",id);try{return await QRCode.toDataURL(u.toString(),{width:320,margin:2})}catch{return ""}}
-async function render(p){const q=await qrData(p.id);$("result").innerHTML=`<div class="product"><div><span class="pill">ĐÃ XÁC MINH / DEMO</span><h2 style="margin-top:12px">${p.name}</h2><p><b>Mã lô:</b> ${p.id}<br><b>Xuất xứ:</b> ${p.origin}<br><b>Nhà sản xuất:</b> ${p.manufacturer}<br><b>Khởi tạo:</b> ${p.createdAt}</p><h3>Hành trình sản phẩm</h3><div class="timeline">${p.history.map(x=>`<div class="event"><b>${x.status}</b><span>${x.location} • ${x.time}</span><div class="muted">${x.note}</div><div class="hash">Actor: ${x.actor}</div></div>`).join("")}</div></div><div class="qrbox"><h3>QR truy xuất</h3>${q?`<img src="${q}" alt="QR truy xuất">`:"<p>Không tạo được QR.</p>"}<p class="muted">Quét QR bằng điện thoại để mở đúng mã lô này.</p><button class="secondary" onclick="downloadQR('${q}','${p.id}')">Lưu QR PNG</button></div></div>`}
-window.downloadQR=(src,id)=>{const a=document.createElement('a');a.href=src;a.download=`QR-${id}.png`;a.click()};
-$("demo").onclick=()=>{localStorage.setItem("coffeeDemo",JSON.stringify(demoProduct));$("qid").value=demoProduct.id;render(demoProduct)};
-$("connect").onclick=async()=>{try{if(!window.ethereum)throw Error("Chưa có ví tương thích Ethereum/MetaMask.");provider=new ethers.BrowserProvider(window.ethereum);await provider.send("eth_requestAccounts",[]);signer=await provider.getSigner();contract=new ethers.Contract(CONTRACT_ADDRESS,ABI,signer);$("account").textContent="Đã kết nối: "+await signer.getAddress()}catch(e){err(e)}};
-$("create").onclick=async()=>{try{need();const tx=await contract.createProduct($("pid").value,$("pname").value,$("origin").value,$("manufacturer").value);$("result").innerHTML=`<p>Đang chờ xác nhận… <span class="hash">${tx.hash}</span></p>`;await tx.wait();$("qid").value=$("pid").value;$("search").click()}catch(e){err(e)}};
-$("trace").onclick=async()=>{try{need();const tx=await contract.addTrace($("tid").value,$("status").value,$("location").value,$("note").value);$("result").innerHTML=`<p>Đang chờ xác nhận… <span class="hash">${tx.hash}</span></p>`;await tx.wait();$("qid").value=$("tid").value;$("search").click()}catch(e){err(e)}};
-$("search").onclick=async()=>{const id=$("qid").value.trim();try{if(contract&&!CONTRACT_ADDRESS.includes("PASTE_")){const p=await contract.getProduct(id),hs=await contract.getHistory(id);return render({id:p.id,name:p.name,origin:p.origin,manufacturer:p.manufacturer,createdAt:new Date(Number(p.createdAt)*1000).toLocaleString("vi-VN"),history:hs.map(x=>({status:x.status,location:x.location,note:x.note,time:new Date(Number(x.timestamp)*1000).toLocaleString("vi-VN"),actor:x.actor}))})}const d=JSON.parse(localStorage.getItem("coffeeDemo")||"null");if(d&&d.id===id)return render(d);throw Error("Chưa có dữ liệu local. Nhấn 'Nạp dữ liệu cà phê mẫu', hoặc kết nối contract đã deploy.")}catch(e){$("result").innerHTML=`<p class="muted">${e.shortMessage||e.message}</p>`}};
-const initial=new URLSearchParams(location.search).get("id");if(initial){$("qid").value=initial;const d=JSON.parse(localStorage.getItem("coffeeDemo")||"null");if(d&&d.id===initial)render(d)}
+// ======================================================
+// VIETCOFFEE TRACE - DEMO BLOCKCHAIN TRACEABILITY
+// ======================================================
+
+const $ = (id) => document.getElementById(id);
+
+// ------------------------------------------------------
+// DỮ LIỆU CÀ PHÊ DEMO
+// ------------------------------------------------------
+
+const demoProduct = {
+  id: "VN-CF-2026-001",
+  name: "Cà phê Arabica Cầu Đất",
+  origin: "Cầu Đất, Đà Lạt, Lâm Đồng",
+  manufacturer: "HTX Cà phê Cao nguyên Demo",
+  createdAt: "18/09/2026 07:30",
+
+  history: [
+    {
+      status: "Thu hoạch",
+      location: "Cầu Đất, Đà Lạt",
+      note: "Thu hoạch quả chín chọn lọc",
+      time: "18/09/2026 07:30",
+      actor: "HTX Cà phê Cầu Đất"
+    },
+    {
+      status: "Sơ chế",
+      location: "Cầu Đất, Đà Lạt",
+      note: "Sơ chế ướt, phơi kiểm soát",
+      time: "19/09/2026 14:10",
+      actor: "Cơ sở sơ chế Cầu Đất"
+    },
+    {
+      status: "Kiểm định chất lượng",
+      location: "Đà Lạt, Lâm Đồng",
+      note: "Mẫu đạt tiêu chuẩn nội bộ của lô demo",
+      time: "21/09/2026 09:20",
+      actor: "Bộ phận kiểm định chất lượng"
+    },
+    {
+      status: "Rang & đóng gói",
+      location: "Đà Lạt, Lâm Đồng",
+      note: "Rang vừa, đóng gói 500g",
+      time: "22/09/2026 16:00",
+      actor: "VietCoffee Roastery"
+    },
+    {
+      status: "Sẵn sàng phân phối",
+      location: "Hà Nội",
+      note: "Lô demo phục vụ tiểu luận",
+      time: "24/09/2026 08:30",
+      actor: "VietCoffee Distribution"
+    }
+  ]
+};
+
+
+// ------------------------------------------------------
+// TẠO URL TRUY XUẤT
+// ------------------------------------------------------
+
+function traceURL(id) {
+  const url = new URL(window.location.href);
+
+  url.search = "";
+  url.hash = "";
+
+  url.searchParams.set("id", id);
+
+  return url.toString();
+}
+
+
+// ------------------------------------------------------
+// TẠO QR CODE
+// Sử dụng QRCode.js
+// ------------------------------------------------------
+
+function createQR(id) {
+
+  const box = $("qr");
+
+  if (!box) return;
+
+  box.innerHTML = "";
+
+  const url = traceURL(id);
+
+  try {
+
+    new QRCode(box, {
+      text: url,
+      width: 220,
+      height: 220,
+      correctLevel: QRCode.CorrectLevel.H
+    });
+
+  } catch (error) {
+
+    console.error("QR Error:", error);
+
+    box.innerHTML =
+      '<p class="muted">Không tạo được QR.</p>';
+  }
+}
+
+
+// ------------------------------------------------------
+// HIỂN THỊ SẢN PHẨM
+// ------------------------------------------------------
+
+function render(product) {
+
+  if (!product) return;
+
+  const result = $("result");
+
+  if (!result) return;
+
+  const historyHTML = product.history.map(item => {
+
+    return `
+      <div class="event">
+
+        <b>${item.status}</b>
+
+        <p>
+${item.location} • ${item.time}
+        </p>
+
+        <p>
+          ${item.note}
+        </p>
+
+        <small>
+          Đơn vị xác nhận: ${item.actor}
+        </small>
+
+      </div>
+    `;
+
+  }).join("");
+
+
+  result.innerHTML = `
+
+    <div class="product">
+
+      <div>
+        <span class="pill">
+          ĐÃ XÁC MINH / DEMO
+        </span>
+      </div>
+
+      <h2 style="margin-top:12px">
+        ${product.name}
+      </h2>
+
+      <p>
+        <b>Mã lô:</b>
+        ${product.id}
+      </p>
+
+      <p>
+        <b>Xuất xứ:</b>
+        ${product.origin}
+      </p>
+
+      <p>
+        <b>Nhà sản xuất:</b>
+        ${product.manufacturer}
+      </p>
+
+      <p>
+        <b>Khởi tạo:</b>
+        ${product.createdAt}
+      </p>
+
+      <h3>
+        Hành trình sản phẩm
+      </h3>
+
+      <div class="timeline">
+
+        ${historyHTML}
+
+      </div>
+
+    </div>
+
+  `;
+
+
+  // tạo QR sau khi hiển thị sản phẩm
+
+  setTimeout(() => {
+    createQR(product.id);
+  }, 100);
+}
+
+
+// ------------------------------------------------------
+// NẠP DỮ LIỆU DEMO
+// ------------------------------------------------------
+
+if ($("demo")) {
+
+  $("demo").onclick = () => {
+
+    localStorage.setItem(
+      "coffeeDemo",
+      JSON.stringify(demoProduct)
+    );
+
+    if ($("qid")) {
+      $("qid").value = demoProduct.id;
+    }
+
+    render(demoProduct);
+  };
+}
+
+
+// ------------------------------------------------------
+// TRA CỨU
+// ------------------------------------------------------
+
+if ($("search")) {
+
+  $("search").onclick = () => {
+
+    const id = $("qid").value.trim();
+
+    const stored =
+      JSON.parse(
+        localStorage.getItem("coffeeDemo") || "null"
+      );
+
+    if (
+      stored &&
+      stored.id === id
+    ) {
+
+      render(stored);
+
+    } else if (
+      id === demoProduct.id
+    ) {
+
+      render(demoProduct);
+
+    } else {
+
+      $("result").innerHTML =
+        "<p>Không tìm thấy mã lô.</p>";
+
+      if ($("qr")) {
+        $("qr").innerHTML = "";
+      }
+    }
+  };
+}
+
+
+// ------------------------------------------------------
+// TẢI QR PNG
+// ------------------------------------------------------
+
+window.downloadQR = function () {
+
+  const qrBox = $("qr");
+
+  if (!qrBox) return;
+
+  const canvas = qrBox.querySelector("canvas");
+  const img = qrBox.querySelector("img");
+
+  let src = "";
+
+  if (canvas) {
+    src = canvas.toDataURL("image/png");
+  } else if (img) {
+    src = img.src;
+  }
+
+  if (!src) {
+    alert("QR chưa được tạo.");
+    return;
+  }
+
+  const id =
+    $("qid")?.value ||
+    demoProduct.id;
+
+  const a =
+    document.createElement("a");
+
+  a.href = src;
+
+  a.download =
+    `VietCoffee-QR-${id}.png`;
+
+  document.body.appendChild(a);
+
+  a.click();
+
+  document.body.removeChild(a);
+};
+
+
+// ------------------------------------------------------
+// KẾT NỐI METAMASK
+// ------------------------------------------------------
+
+if ($("connect")) {
+
+  $("connect").onclick = async () => {
+try {
+
+      if (!window.ethereum) {
+
+        alert(
+          "Chưa phát hiện MetaMask. " +
+          "Bạn vẫn có thể sử dụng chế độ Demo."
+        );
+
+        return;
+      }
+
+      const accounts =
+        await window.ethereum.request({
+          method: "eth_requestAccounts"
+        });
+
+      if ($("account")) {
+
+        const wallet =
+          accounts[0];
+
+        $("account").textContent =
+          "Đã kết nối: " +
+          wallet.substring(0, 6) +
+          "..." +
+          wallet.substring(
+            wallet.length - 4
+          );
+      }
+
+    } catch (error) {
+
+      console.error(error);
+
+      alert(
+        "Không thể kết nối MetaMask."
+      );
+    }
+  };
+}
+
+
+// ------------------------------------------------------
+// ĐỌC MÃ LÔ TỪ QR / URL
+// ------------------------------------------------------
+
+window.addEventListener(
+  "DOMContentLoaded",
+  () => {
+
+    const params =
+      new URLSearchParams(
+        window.location.search
+      );
+
+    const id =
+      params.get("id");
+
+    if (id) {
+
+      if ($("qid")) {
+        $("qid").value = id;
+      }
+
+      const stored =
+        JSON.parse(
+          localStorage.getItem(
+            "coffeeDemo"
+          ) || "null"
+        );
+
+      if (
+        stored &&
+        stored.id === id
+      ) {
+
+        render(stored);
+
+      } else if (
+        id === demoProduct.id
+      ) {
+
+        render(demoProduct);
+      }
+    }
+  }
+);
